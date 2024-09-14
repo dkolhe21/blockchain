@@ -23,7 +23,7 @@ This project implements a simple blockchain using Python and Flask. The blockcha
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-repo/blockchain-flask.git
+git clone  https://github.com/dkolhe21/blockchain.git
 cd blockchain-flask
 ```
 
