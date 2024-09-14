@@ -1,7 +1,7 @@
 import hashlib    # Used for hashing blocks
 import json       # Used for manipulating data
 from time import time  # Used to get the current Unix timestamp for the block
-from urllib.parse import urlparse  # Helps parse URLs when registering new nodes
+from urllib.parse import urlparse  # Helps parse URLs when registeringcleat new nodes
 from uuid import uuid4  # Generates unique node identifiers
 from flask import Flask, jsonify, request  # Used for creating the API framework
 import requests  # Used to send requests for conflict resolution
@@ -50,35 +50,43 @@ class Blockchain:
 
         return True
 
-    # Resolve conflicts using the longest chain rule
     def resolve_conflicts(self):
         """
-        Consensus algorithm: resolves conflicts by replacing our chain with the longest valid chain in the network.
-        :return: True if our chain was replaced, False if not
+        This is our Consensus Algorithm, it resolves conflicts
+        by replacing our chain with the longest one in the network.
+        :return: <bool> True if our chain was replaced, False if not
         """
-        neighbours = self.nodes  # Get all the neighboring nodes
+
+        neighbours = self.nodes
         new_chain = None
-        max_length = len(self.chain)  # Current chain length
 
-        # Get and verify the chains from all the nodes in the network
+        # We're only looking for chains longer than ours
+        max_length = len(self.chain)
+
+        # Grab and verify the chains from all the nodes in our network
         for node in neighbours:
-            response = requests.get(f'http://{node}/chain')
+            try:
+                response = requests.get(f'http://{node}/chain')
+                if response.status_code == 200:
+                    length = response.json()['length']
+                    chain = response.json()['chain']
+                    # Check if the length is longer and the chain is valid
+                    if length > max_length and self.valid_chain(chain):
+                        max_length = length
+                        new_chain = chain
+            except requests.RequestException as e:
+                print(f"Error contacting node {node}: {e}")
+                continue
 
-            if response.status_code == 200:
-                length = response.json()['length']
-                chain = response.json()['chain']
-
-                # Replace our chain if a longer valid chain is found
-                if length > max_length and self.valid_chain(chain):
-                    max_length = length
-                    new_chain = chain
-
-        # Replace current chain if a new valid chain is found
+        # Replace our chain if we discovered a new, valid chain longer than ours
         if new_chain:
             self.chain = new_chain
             return True
 
         return False
+
+
+
 
     # Create a new block and add it to the blockchain
     def new_block(self, proof, previous_hash=None):
@@ -237,6 +245,8 @@ def register_nodes():
     return jsonify(response), 201
 
 # Endpoint to resolve conflicts between nodes
+
+
 @app.route('/nodes/resolve', methods=['GET'])
 def consensus():
     replaced = blockchain.resolve_conflicts()
